@@ -80,3 +80,22 @@ xlabel('x'); ylabel('z');
 title('Contour of w(z,x)');
 colorbar;
 
+%% Finding u
+
+function dwdz = richardson_dz(w,delta_z,N_x,N_z)
+%using Richardson extrapolation to compute dw/dz
+    dwdz = zeros(N_z+1,N_x);
+    k = 3:N_z-1;
+    %centred differences
+    d1 = (w(k+1,:)-w(k-1,:))./(2*delta_z);
+    d2 = (w(k+2,:)-w(k-2,:))./(4*delta_z);
+    %Richardson extrapolation
+    dwdz(k,:) = (4*d1-d2)/3;
+    %endpoints
+    dwdz(2,:) = (w(3,:)-w(1,:))/(2*delta_z);
+    dwdz(end-1,:) = (w(end,:)-w(end-2,:))/(2*delta_z);%centred differences
+    dwdz(1,:) = (w(2,:)-w(1,:))/delta_z; %forward difference
+    dwdz(end,:) = zeros(1,N_x); %initial condition
+end
+
+dwdz = richardson_dz(w,delta_z,N_x,N_z);
