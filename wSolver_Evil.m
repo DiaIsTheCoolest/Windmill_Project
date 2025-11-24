@@ -1,4 +1,3 @@
-% --------------------------
 % Parameters
 L_x = 1000;     % domain length in x
 L_z = 800;     % domain length in z
@@ -11,42 +10,35 @@ sig_z = 40;    % Gaussian width z
 N_x = 128;     % number of x points (FFT-friendly)
 N_z = 100;     % number of z intervals
 
-% --------------------------
 % Grids
 x = linspace(0,L_x,N_x);      % x-grid
 z = linspace(0,L_z,N_z+1);    % z-grid
 
-[X,Z] = meshgrid(x,z);
+[X,Z] = meshgrid(x,z); % Gridpoints
 
-% --------------------------
-% Forcing: Gaussian
+% F_x
 f = -A .* exp(-(X-x_0).^2/(2*sig_x^2)) .* exp(-(Z-z_0).^2/(2*sig_z^2));
 
-% --------------------------
-% FFT along x (columns)
+% FFT along x (columns) of force
 f_hat = fft(f,[],2);   % FFT along x, size (N_z+1 x N_x)
 
-% --------------------------
 % Solve ODE along z for each Fourier mode
-w_hat = zeros(size(f_hat));  % preallocate
+w_hat = zeros(size(f_hat));  % preallocate space
 
 delta_z = L_z / N_z;        % grid spacing in z
 N = N_z;
 
 % Finite difference matrix for z-derivatives
-a = U0 * (-2/delta_z^2 - (2*pi/L_x)^2); % will overwrite k below
+a = @(k) U0 * (-2/delta_z^2 - (k)^2); 
 b = U0 / delta_z^2;
 main_diag = zeros(N,1);
 off_diag  = b * ones(N,1);
 
 for j = 1:N_x
-    % Fourier wavenumber
-    k = 2*pi*(j-1)/L_x;  % MATLAB indexing: 0..N_x-1
-    a = U0 * (-2/delta_z^2 - k^2);
-    main_diag(:) = a;
+    k = 2*pi*(j-1)/L_x;  % Fourier Mode
+    main_diag(:) = a(k);
     A = spdiags([off_diag main_diag off_diag], -1:1, N, N);
-    % Neumann BC at top
-    A(N,N-1) = 2*b;
+    A(N,N-1) = 2*b; % Neuman conditions
     
     % Compute df/dz using centered differences
     f_col = f_hat(:,j);   % size N+1
@@ -60,18 +52,9 @@ for j = 1:N_x
     w_hat(:,j) = [0; w_k];  % include w(0)=0
 end
 
-% --------------------------
-% Convert back to real space
+% Convert back to x space
 w = ifft(w_hat,[],2,'symmetric');  % w(x,z), size (N_z+1 x N_x)
 
-% --------------------------
-% Plot solution
-figure;
-imagesc(x,z,w);
-set(gca,'YDir','normal');
-xlabel('x'); ylabel('z');
-title('w(z,x) from pseudo-spectral solution');
-colorbar;
 % Plot the contour of the solution
 figure;
 contourf(x, z, w, 20);
@@ -80,7 +63,6 @@ xlabel('x'); ylabel('z');
 title('Contour of w(z,x)');
 colorbar;
 
-%% Finding u
 
 function dwdz = richardson_dz(w,delta_z,N_x,N_z)
 %using Richardson extrapolation to compute dw/dz
