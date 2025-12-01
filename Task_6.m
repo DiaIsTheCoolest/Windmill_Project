@@ -1,3 +1,129 @@
+% --------------------------
+% Parameters
+%STANDARDISE SO ALL UNITS ARE IN METRES
+L_x = 100000;     % Length of domain in the horizontal
+L_z = 800;     % Length of domain in the vertical
+z_0 = 150;     % Turbine hub height
+x_0 = L_x/4;   % Turbine location from upstream edge
+A = 0.5;       % Amplitude of forcing
+U0 = 20;       % Background wind velocity
+sig_x = 50;    % spread of forcing in x
+sig_z = 40;    % spread of forcing in z
+N_x = 128;     % number of x points (FFT-friendly)
+N_z = 100;     % number of z intervals
+
+
+% Grids
+x = linspace(0,L_x,N_x);      % x-grid
+z = linspace(0,L_z,N_z+1);    % z-grid
+[X,Z] = meshgrid(x,z);
+
+%Defining f_x(x,z)
+f = -A .* exp(-(X-x_0).^2/(2*sig_x^2)) .* exp(-(Z-z_0).^2/(2*sig_z^2));
+
+% --------------------------
+% FFT along x (columns)
+f_hat = fft(f,[],2);   % FFT along x, size (N_z+1 x N_x)
+
+% --------------------------
+% Solve ODE along z for each Fourier mode
+w_hat = zeros(size(f_hat));  % preallocate
+
+delta_z = L_z / N_z;        % grid spacing in z
+N = N_z;
+
+% Finite difference matrix for z-derivatives
+a = U0 * (-2/delta_z^2 - (2*pi/L_x)^2); % will overwrite k below
+b = U0 / delta_z^2;
+main_diag = zeros(N,1);
+off_diag  = b * ones(N,1);
+
+for j = 1:N_x
+
+    % creating the A_k matrix
+    k = 2*pi*(j-1)/L_x;
+    a = U0 * (-2/delta_z^2 - k^2);
+    main_diag(:) = a;
+    A = spdiags([off_diag main_diag off_diag], -1:1, N, N);
+    % Neumann BC at top
+    A(N,N-1) = 2*b;
+
+    % Compute df/dz using centered differences
+    f_col = f_hat(:,j);   % size N+1
+    F_k = zeros(N,1);
+    F_k(2:N-1) = -(f_col(3:N) - f_col(1:N-2)) / (2*delta_z);
+    F_k(1) = -(f_col(2)-f_col(1))/delta_z;
+    F_k(N) = -(f_col(N+1)-f_col(N))/delta_z;
+
+    
+    % Solve system
+    w_k = A \ F_k;
+    w_hat(:,j) = [0; w_k];  % include w(0)=0
+end
+
+% --------------------------
+% Convert back to real space
+w = ifft(w_hat,[],2,'symmetric');  % w(x,z), size (N_z+1 x N_x);
+
+
+
+
+
+function dwdz = richardson_dz(w,delta_z,N_x,N_z)
+%using Richardson extrapolation to compute dw/dz
+    dwdz = zeros(N_z+1,N_x);
+    k = 3:N_z-1;
+    %centred differences
+    d1 = (w(k+1,:)-w(k-1,:))./(2*delta_z);
+    d2 = (w(k+2,:)-w(k-2,:))./(4*delta_z);
+    %Richardson extrapolation
+    dwdz(k,:) = (4*d1-d2)/3;
+    %endpoints
+    dwdz(2,:) = (w(3,:)-w(1,:))/(2*delta_z);
+    dwdz(end-1,:) = (w(end,:)-w(end-2,:))/(2*delta_z);%centred differences
+    dwdz(1,:) = (w(2,:)-w(1,:))/delta_z; %forward difference
+    dwdz(end,:) = zeros(1,N_x); %initial condition
+end
+
+dwdz = richardson_dz(w,delta_z,N_x,N_z);
+
+function u = integralOfDiff(dwdz,N_x,L_x)
+    dx = L_x / (N_x);
+    u = -dx*cumtrapz(dwdz,2);
+end
+
+
+u = integralOfDiff(dwdz,N_x,L_x);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 t_start = 0;
 t_end = 3600;
 delta_t = 1;
@@ -19,8 +145,8 @@ end
 
 
 
-X0 = 280;
-Z0 =100;
+X0 = 0;
+Z0 = 100;
 
 X_current = X0;
 Z_current = Z0;
@@ -29,6 +155,7 @@ for i = 1:N
     X_trajectory(i) = X_current;
     Z_trajectory(i) = Z_current;
 
+     
 
 
 
@@ -50,8 +177,11 @@ for i = 1:N
     X_current = X_new;
     Z_current = Z_new;
 end
-X_trajectory(N) = X_current;
-Z_trajectory(N) = Z_current;
+X_trajectory(N+1) = X_current;
+Z_trajectory(N+1) = Z_current;
+
+X_trajectory(1:10)
+Z_trajectory(1:10)
 
 
 figure
@@ -62,7 +192,6 @@ title('Z Trajectory vs Time')
 grid on
 
 
-xlim([1,45])
 
 figure
 plot(timeVector, X_trajectory)
@@ -78,12 +207,14 @@ xlim([1,45])
 
 figure
 plot(X_trajectory, Z_trajectory)
-hold on
-quiver(x,z,U, W)
 xlabel('X (m)')
 ylabel('Z (m)')
 title('X Trajectory vs Z trajectory')
 grid on
+hold on
+%quiver(x,z,U, W)
+%quiver(x(1:sv:end),z(1:sv:end),sf*u((1:sv:end),(1:sv:end)),sf*w((1:sv:end),(1:sv:end)),0)
+
 
 
 
