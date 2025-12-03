@@ -10,7 +10,7 @@ U0 = 20;       % Background wind velocity
 sig_x = 50;    % spread of forcing in x
 sig_z = 40;    % spread of forcing in z
 N_x = 512;     % number of x points (FFT-friendly)
-N_z = 100;     % number of z intervals
+N_z = 250;     % number of z intervals
 
 %STANDARDISE SO ALL UNITS ARE IN METRES
 
@@ -226,3 +226,25 @@ grid on
 hold on
 %quiver(x,z,U, W)
 %quiver(x(1:sv:end),z(1:sv:end),sf*u((1:sv:end),(1:sv:end)),sf*w((1:sv:end),(1:sv:end)),0)
+
+
+
+
+% find nearest x index to turbine
+[~, ix0] = min(abs(x - x_0));
+w_at_x0 = w(:, ix0); % size N_z+1
+
+figure; plot(w_at_x0, z);
+xlabel('w (m/s)'); ylabel('z (m)');
+title('Vertical profile of w at turbine x location');
+grid on;
+
+
+% find nearest x index to turbine
+[~, ix0] = min(abs(x - x_0));
+u_at_x0 = U(:, ix0); % size N_z+1
+
+figure; plot(u_at_x0, z);
+xlabel('u (m/s)'); ylabel('x (m)');
+title('Vertical profile of u at turbine x location');
+grid on;
