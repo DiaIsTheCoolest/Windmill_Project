@@ -9,8 +9,14 @@ A = 0.5;       % Amplitude of forcing
 U0 = 20;       % Background wind velocity
 sig_x = 50;    % spread of forcing in x
 sig_z = 40;    % spread of forcing in z
-N_x = 128;     % number of x points (FFT-friendly)
+N_x = 512;     % number of x points (FFT-friendly)
 N_z = 100;     % number of z intervals
+
+%STANDARDISE SO ALL UNITS ARE IN METRES
+
+
+
+
 
 
 % Grids
@@ -33,8 +39,8 @@ delta_z = L_z / N_z;        % grid spacing in z
 N = N_z;
 
 % Finite difference matrix for z-derivatives
-a = U0 * (-2/delta_z^2 - (2*pi/L_x)^2); % will overwrite k below
-b = U0 / delta_z^2;
+a = (-2/delta_z^2 - (2*pi/L_x)^2); % will overwrite k below
+b = 1 / delta_z^2;
 main_diag = zeros(N,1);
 off_diag  = b * ones(N,1);
 
@@ -42,11 +48,15 @@ for j = 1:N_x
 
     % creating the A_k matrix
     k = 2*pi*(j-1)/L_x;
-    a = U0 * (-2/delta_z^2 - k^2);
+    a = (-2/delta_z^2 - k^2);
+
+    S = 1000;
+
     main_diag(:) = a;
     A = spdiags([off_diag main_diag off_diag], -1:1, N, N);
     % Neumann BC at top
     A(N,N-1) = 2*b;
+
 
     % Compute df/dz using centered differences
     f_col = f_hat(:,j);   % size N+1
@@ -55,9 +65,12 @@ for j = 1:N_x
     F_k(1) = -(f_col(2)-f_col(1))/delta_z;
     F_k(N) = -(f_col(N+1)-f_col(N))/delta_z;
 
+    rhs = (F_k *S)/ U0;
+   
     
     % Solve system
-    w_k = A \ F_k;
+    w_k_scaled = A \ rhs;
+    w_k = w_k_scaled / S;
     w_hat(:,j) = [0; w_k];  % include w(0)=0
 end
 
@@ -123,7 +136,6 @@ u = integralOfDiff(dwdz,N_x,L_x);
 
 
 
-
 t_start = 0;
 t_end = 3600;
 delta_t = 1;
@@ -146,7 +158,7 @@ end
 
 
 X0 = 0;
-Z0 = 100;
+Z0 = 200;
 
 X_current = X0;
 Z_current = Z0;
@@ -214,9 +226,3 @@ grid on
 hold on
 %quiver(x,z,U, W)
 %quiver(x(1:sv:end),z(1:sv:end),sf*u((1:sv:end),(1:sv:end)),sf*w((1:sv:end),(1:sv:end)),0)
-
-
-
-
-
-
