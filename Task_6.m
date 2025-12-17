@@ -1,4 +1,3 @@
-% Parameters
 L_x = 100000;     % domain length in x
 L_z = 800;     % domain length in z
 x_0 = L_x/4;   % Gaussian center x
@@ -7,7 +6,7 @@ A = 0.5;       % forcing amplitude
 U0 = 20;       % background velocity
 sig_x = 50;    % Gaussian width x
 sig_z = 40;    % Gaussian width z
-N_x = 1280;     % number of x points (FFT-friendly)
+N_x = 1280;     % number of x points
 N_z = 100;     % number of z intervals
 
 % Grids
